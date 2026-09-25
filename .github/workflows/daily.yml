@@ -1,0 +1,100 @@
+name: 焦煤日报
+
+# 时间为 UTC，北京时间 = UTC + 8
+#   01:35 UTC = 09:35 北京（开盘）
+#   02:00 UTC = 10:00 北京（上午十点）
+#   07:02 UTC = 15:02 北京（收盘）
+# 周一到周五触发；法定节假日由程序内部的交易日守卫（行情时间戳）自动跳过，
+# 不依赖任何外部节假日日历。
+on:
+  schedule:
+    - cron: '35 1 * * 1-5'
+    - cron: '0 2 * * 1-5'
+    - cron: '2 7 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      slot:
+        description: '要跑的时段（手动试跑用）'
+        type: choice
+        required: false
+        default: 'market_close'
+        options:
+          - market_open
+          - morning_ten
+          - market_close
+
+concurrency:
+  group: jiaomei-daily
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      # 行情/资金流/发送日志存在 SQLite 里（含"近5日主力合计"的本地累积）。
+      # GitHub 的 runner 是一次性的，用 Actions 缓存把数据库带过去，
+      # key 带 run_id 保证每次运行后都会存一份新快照，restore-keys 恢复最近一份。
+      - name: 恢复行情数据库
+        uses: actions/cache@v4
+        with:
+          path: jiaomei_tracker/data
+          key: tracker-data-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            tracker-data-v1-
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # 凭证从仓库 Secrets 生成 .env（wechat_pusher 启动时自动读取，
+      # 真实环境变量优先，不会覆盖 Secrets 注入的值）。.env 永远不进 git。
+      - name: 生成凭证文件
+        run: |
+          printf 'QQ_BOT_APPID=%s\nQQ_BOT_SECRET=%s\nQQ_BOT_USER_OPENID=%s\n' \
+            "${{ secrets.QQ_BOT_APPID }}" \
+            "${{ secrets.QQ_BOT_SECRET }}" \
+            "${{ secrets.QQ_BOT_USER_OPENID }}" > wechat_pusher/.env
+          if grep -q '=$' wechat_pusher/.env; then
+            echo "::error::存在空的 Secret，请到仓库 Settings -> Secrets and variables -> Actions 检查 QQ_BOT_APPID / QQ_BOT_SECRET / QQ_BOT_USER_OPENID 三个值是否都已填写"
+            exit 1
+          fi
+          echo "凭证文件已生成（未回显内容）"
+
+      - name: 确定时段
+        id: slot
+        run: |
+          INPUT="${{ github.event.inputs.slot }}"
+          if [ -n "$INPUT" ]; then
+            SLOT="$INPUT"
+          else
+            BJ=$(TZ=Asia/Shanghai date +%H%M)
+            case "$BJ" in
+              09*) SLOT=market_open ;;
+              10*) SLOT=morning_ten ;;
+              15*) SLOT=market_close ;;
+              *)   SLOT=market_close ;;
+            esac
+          fi
+          echo "slot=$SLOT" >> "$GITHUB_OUTPUT"
+          echo "时段=$SLOT  北京时间=$(TZ=Asia/Shanghai date '+%F %T')"
+
+      - name: 运行日报
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          cd jiaomei_tracker
+          python run.py --slot "${{ steps.slot.outputs.slot }}"
+
+      - name: 运行结果摘要
+        if: always()
+        run: |
+          echo "=== 本次任务结束，详细过程见上一步日志 ==="

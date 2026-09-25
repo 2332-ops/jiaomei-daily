@@ -1,0 +1,7 @@
+# 运行 wxpush 本体只需这两个
+requests>=2.31.0
+PyYAML>=6.0
+
+# 仅 tools/qq_fetch_openid.py（抓 QQ 机器人的 group_openid）需要，
+# 用不到 QQ 通道可以不装
+# websocket-client>=1.7.0

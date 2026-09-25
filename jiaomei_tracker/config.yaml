@@ -1,0 +1,203 @@
+# ==========================================================================
+# 山西焦煤（000983）每日行情追踪 —— 配置文件
+# 修改本文件后无需改代码；常驻模式会每 60 秒自动热加载一次。
+# 所有 ${XXX} 占位符从系统环境变量读取，不要把密钥直接写在本文件里。
+# ==========================================================================
+
+# ---------------------------- 监控标的 ----------------------------
+target:
+  code: "000983"            # 6 位股票代码；程序自动补市场前缀（0/2/3 开头→sz，6/9→sh，4/8→bj）
+  name: "山西焦煤"
+  # 期望名称（用于校验取到的标的是否正确，防止代码张冠李戴）。留空则不校验。
+  expect_name: "山西焦煤"
+
+# ---------------------------- 发送时间 ----------------------------
+# 需要几个时段就写几条，增删/改时间都可以。
+# 【关于默认时间的两点说明，可自行改成你要的整点】
+#  1) 开盘默认 09:35 而不是 09:30：09:30:00 整点的行情快照经常还没刷新出当日开盘价，
+#     取 09:35 能确保拿到当日真实开盘价与前 5 分钟表现。要严格 09:30 就改成 "09:30"。
+#  2) 收盘默认 15:02 而不是 15:00：A 股 14:57-15:00 是收盘集合竞价，15:00:00 整点价格
+#     尚未定稿（约 15:00:30 后才稳定），15:00 取数可能拿到未定格的收盘价。要严格
+#     15:00 就改成 "15:00"，程序会自动重试等数据落定。
+# intraday: true 表示盘中快照（文案用"现价"），false 表示当日定稿（文案用"收盘价"）
+schedule:
+  slots:
+    - id: market_open
+      name: "开盘"
+      time: "09:35"
+      intraday: true
+    - id: morning_ten
+      name: "上午十点"
+      time: "10:00"
+      intraday: true
+    - id: market_close
+      name: "下午三点"
+      time: "15:02"
+      intraday: false
+
+  # 交易日守卫：留空时程序用"行情时间戳是否为今天"自动判断。
+  # 若要跳过网络请求直接判定，按 YYYY-MM-DD 逐行补充休市日（法定节假日、临时休市）。
+  holidays: []
+  #  - "2026-10-01"
+  #  - "2026-10-02"
+
+# ---------------------------- 重试与超时 ----------------------------
+retry:
+  fetch_attempts: 4          # 取数总尝试次数（含首次）
+  fetch_backoff_base: 1.2    # 重试退避基数（秒），实际间隔 = base * 2^n * 随机抖动
+  fetch_backoff_cap: 12.0    # 单次退避上限（秒）
+  send_attempts: 3           # 推送总尝试次数（含首次）
+  send_backoff_base: 2.0
+  send_backoff_cap: 20.0
+  timeout_connect: 6         # 连接超时（秒）
+  timeout_read: 15           # 读取超时（秒）
+
+# ---------------------------- 报告内容开关 ----------------------------
+report:
+  include_fund_flow: true    # 大资金流入流出
+  include_ma: true           # 均线（MA5 / MA20）
+  include_five_day: true     # 近 5 日走势明细
+  five_day_count: 5          # 走势明细显示几个交易日
+  include_disclaimer: true   # 末尾免责声明
+  # 主力资金取不到时，是否附一行"主动买-主动卖（内外盘口径）"作降级参考。
+  # 注意：这是与"主力净流入"完全不同的口径，报告中会显式区分，不会冒充主力资金。
+  degraded_fund_proxy: true
+  title_prefix: "山西焦煤 000983"
+
+# ---------------------------- 数据源 ----------------------------
+# order 为优先级顺序，前一个失败自动降级到下一个。
+sources:
+  quote_order: ["tencent", "sina"]
+  kline_order: ["tencent", "sina"]
+  fundflow_order: ["eastmoney_day", "eastmoney_minute"]
+  # 东财资金流常用镜像域名，逐个尝试
+  eastmoney_hosts:
+    - "push2his.eastmoney.com"
+    - "push2.eastmoney.com"
+    - "push2delay.eastmoney.com"
+  # 资金流的 HTTP 后端：
+  #   auto     先用 Python requests，失败时用系统 curl 再试（推荐）
+  #   requests 只用 Python 库
+  #   curl     只用系统 curl
+  # 为什么要有这个开关：某些企业代理 / TLS 策略下，Python 的 HTTP 栈会与目标站点
+  # 握手失败（报 RemoteDisconnected），而系统 curl 能正常访问。Windows 10/11 自带
+  # curl.exe，因此 auto 模式基本不会额外增加依赖。
+  fundflow_backend: "auto"
+
+# ---------------------------- 推送通道 ----------------------------
+# ==========================================================================
+# 【当前架构】送达动作不在这里做，交给 WorkBuddy 自动化 + 微信助理
+#
+# 现实原因：PushPlus 自 2024-08-01 起对"发送消息"接口实行实名制，未实名一律
+# 返回 code=905，且实名是**收费**的。token 完全正确也发不出去 —— 不是配置问题。
+# 因此改走 WorkBuddy 自带通道：微信助理（Claw/IM 集成）扫码绑定，免费、无实名。
+#
+# 于是本程序只负责"取数 + 渲染 + 落库"，送达由外层完成。用 --no-send 运行：
+#
+#   python run.py --slot market_close --no-send
+#
+# 它照常走守卫、取数、落库，只是把报告打印在两条等号横线之间，不做任何外发，
+# 因此**不需要配置任何凭证**。WorkBuddy 的 3 个自动化任务（开盘 09:35 / 十点
+# 10:00 / 收盘 15:02，周一至周五）就是调它，再把报告转推到微信。
+#
+# 为什么不用 --dry-run 代替：--dry-run 是预览用的，它**不落库**，本地资金流
+# 累积（"近 N 日主力合计"）就永远长不起来。
+# ==========================================================================
+#
+# 下面这些通道默认关闭，属于"备用路线"：哪天想让本程序自己直推（例如不依赖
+# WorkBuddy 常驻运行），把对应通道改成 enabled: true 并配好凭证即可。
+# 至少启用一个通道时，直接运行 `python run.py --slot xxx`（不加 --no-send）
+# 就会自己推送。enabled: true 的通道会全部收到报告（可理解为多端冗余）。
+# 统一在系统环境变量里配置密钥，例如 Windows：
+#   setx PUSHPLUS_TOKEN "你的token"      （设置后需重开终端/重新登录生效）
+# 也可在本文件写明文 token —— 但不推荐，配置文件容易被误传。
+channels:
+  # ---------------------------------------------------------------------------
+  # 【备用】把报告转交给 wechat_pusher/ 的推送模块
+  #
+  # 为什么走转发而不是各自配一遍：通道和凭证只需在**一个地方**维护
+  # （E:/workbuddytemp/股票/wechat_pusher/config.yaml），
+  # 那边支持 7 个通道（含 QQ 机器人），换成什么通道这里都自动跟上，不用改两处。
+  # 它的重试还区分"可重试/不可重试"—— 凭证错了不会白白重试 3 次等退避。
+  #
+  # 想要"多端冗余"就同时启用下面任一原生通道（注意别和 wxpush 里的通道重复，
+  # 否则同一条消息会收到两遍）。
+  # ---------------------------------------------------------------------------
+  - type: wxpush
+    enabled: true
+    module_path: "../wechat_pusher"    # 相对本项目根目录；也可写绝对路径
+    config: "config.yaml"              # 相对 module_path
+    only: ["qq_bot"]                   # 只走 QQ 机器人单聊（wechat_pusher 里其他通道当前关闭）
+    # mode: "all"                      # all | failover | require_all
+    # only: ["pushplus"]               # 只发这些通道（通道名或类型）
+
+  # ---------------------------------------------------------------------------
+  # 以下为本模块自带的原生通道（默认全关）。启用前请确认没有和 wxpush 里的
+  # 通道重复，否则会重复收到消息。
+  # ---------------------------------------------------------------------------
+
+  # 方案 A：PushPlus（微信推送，最省事，国内手机可直接收到）
+  # 到 pushplus.plus 微信扫码登录领 token，免费额度足够每日 3 条
+  - type: pushplus
+    enabled: false
+    token: "${PUSHPLUS_TOKEN}"
+
+  # 方案 B：Server 酱 Turbo（微信推送）
+  - type: serverchan
+    enabled: false
+    sendkey: "${SERVERCHAN_KEY}"
+
+  # 方案 C：企业微信群机器人 Webhook
+  - type: wecom
+    enabled: false
+    webhook: "${WECOM_WEBHOOK}"
+
+  # 方案 D：钉钉群机器人（若开了"加签"，把 secret 填上）
+  - type: dingtalk
+    enabled: false
+    access_token: "${DINGTALK_TOKEN}"
+    secret: "${DINGTALK_SECRET}"
+
+  # 方案 E：飞书群机器人
+  - type: feishu
+    enabled: false
+    webhook: "${FEISHU_WEBHOOK}"
+
+  # 方案 F：邮件（手机邮箱 App 收，最稳定通用）
+  - type: email
+    enabled: false
+    smtp_host: "smtp.qq.com"
+    smtp_port: 465
+    use_ssl: true
+    user: "${SMTP_USER}"
+    password: "${SMTP_PASS}"     # QQ 邮箱请用"授权码"，不是登录密码
+    mail_from: "${SMTP_USER}"
+    mail_to: "${MAIL_TO}"
+    subject_prefix: "山西焦煤行情"
+
+  # 方案 G：Bark（iPhone 原生通知，需先装 Bark App）
+  - type: bark
+    enabled: false
+    key: "${BARK_KEY}"
+    server: "https://api.day.app"
+
+  # 本机控制台输出（调试用，不产生任何外部推送）
+  - type: console
+    enabled: true
+
+# ---------------------------- 存储与日志 ----------------------------
+storage:
+  db_path: "data/tracker.db"      # 相对项目根目录
+  keep_days: 400                  # 运行日志保留天数
+
+logging:
+  level: "INFO"                   # DEBUG / INFO / WARNING
+  dir: "logs"
+  max_bytes: 2097152              # 单文件 2MB
+  backup_count: 5
+
+# ---------------------------- 异常通知 ----------------------------
+# 取数全部失败时，是否仍然发一条"取数失败"提醒（建议开，否则你不知道程序哑了）
+alert_on_failure: true
+# 发送成功后写发送日志，同一交易日同一时段不重复发送（防止计划任务重试造成重复推送）
+dedup_by_slot: true

@@ -1,0 +1,18 @@
+# 凭证 —— 永远不进 git（云端由 Actions Secrets 生成，本机放 wechat_pusher/.env）
+wechat_pusher/.env
+.env
+
+# 运行时产生的数据与日志（云端用 Actions 缓存持久化，不走 git）
+jiaomei_tracker/data/
+jiaomei_tracker/logs/
+wechat_pusher/data/
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+
+# 系统杂项
+.DS_Store
+Thumbs.db

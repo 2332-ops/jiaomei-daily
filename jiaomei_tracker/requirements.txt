@@ -1,0 +1,5 @@
+# 山西焦煤（000983）每日行情追踪与手机推送
+# 核心依赖仅两项；APScheduler 仅在 --serve 常驻模式下需要
+requests>=2.31.0
+PyYAML>=6.0
+APScheduler>=3.10.4
