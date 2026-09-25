@@ -23,6 +23,11 @@ on:
           - morning_ten
           - market_close
 
+# 需要写权限：每次运行后把运行状态回写到 status/ 目录，
+# 这样不接触运行日志也能从仓库里看到最近一次跑成什么样。
+permissions:
+  contents: write
+
 concurrency:
   group: jiaomei-daily
   cancel-in-progress: false
@@ -33,6 +38,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # 状态回写要在完整历史上 rebase，浅克隆会出错
 
       - uses: actions/setup-python@v5
         with:
@@ -88,13 +95,50 @@ jobs:
           echo "时段=$SLOT  北京时间=$(TZ=Asia/Shanghai date '+%F %T')"
 
       - name: 运行日报
+        id: run
         env:
           PYTHONIOENCODING: utf-8
         run: |
+          set -o pipefail
           cd jiaomei_tracker
-          python run.py --slot "${{ steps.slot.outputs.slot }}"
+          python run.py --slot "${{ steps.slot.outputs.slot }}" 2>&1 | tee /tmp/daily.log
 
-      - name: 运行结果摘要
+      # 把本次结果写回仓库。即使上一步失败也执行（if: always()），
+      # 且自身失败不拖累整个任务（continue-on-error），只做诊断用。
+      - name: 回写运行状态
         if: always()
+        continue-on-error: true
+        env:
+          SLOT: ${{ steps.slot.outputs.slot }}
+          OUTCOME: ${{ steps.run.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          echo "=== 本次任务结束，详细过程见上一步日志 ==="
+          mkdir -p status
+          BJ_NOW=$(TZ=Asia/Shanghai date '+%F %T')
+          LAST_LINE=$(grep -v '^[[:space:]]*$' /tmp/daily.log 2>/dev/null | tail -1)
+          {
+            echo "北京时间: $BJ_NOW"
+            echo "时段: $SLOT"
+            echo "结果: $OUTCOME"
+            echo "末尾输出: ${LAST_LINE:-（无日志）}"
+            echo "运行页: $RUN_URL"
+          } > status/last-run.txt
+          tail -n 40 /tmp/daily.log > status/last-log-tail.txt 2>/dev/null || true
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add status/
+          if git diff --cached --quiet; then
+            echo "状态无变化，无需提交"
+            exit 0
+          fi
+          git commit -q -m "运行状态 $SLOT $BJ_NOW"
+          # 并发运行或人工推送会让远端前进，直接推会被拒 → 兜底 rebase 后重推
+          if git push -q origin HEAD:main 2>/dev/null; then
+            echo "状态已回写"
+          else
+            echo "推送被拒，改为 rebase 后重推"
+            git pull -q --rebase origin main
+            git push -q origin HEAD:main
+            echo "状态已回写（rebase 兜底）"
+          fi
