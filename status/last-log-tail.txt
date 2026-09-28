@@ -1,7 +1,7 @@
-2026-09-28 04:29:46 [WARNING] 请求失败 1/1 https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=30&… -> ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
-2026-09-28 04:29:48 [WARNING] 请求失败 1/1 https://push2.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=30&klt… -> HTTP 502
-2026-09-28 04:29:52 [WARNING] 请求失败 1/1 https://push2delay.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=3… -> HTTP 502
-2026-09-28 04:29:58 [INFO] 资金流取数成功，来源=eastmoney_minute@push2.eastmoney.com[requests] 日期=2026-09-28 主力净流入=-16567350
+2026-09-28 04:32:55 [WARNING] 请求失败 1/1 https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=30&… -> ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+2026-09-28 04:32:57 [WARNING] 请求失败 1/1 https://push2.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=30&klt… -> HTTP 502
+2026-09-28 04:33:00 [WARNING] 请求失败 1/1 https://push2delay.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=3… -> HTTP 502
+2026-09-28 04:33:04 [INFO] 资金流取数成功，来源=eastmoney_minute@push2.eastmoney.com[requests] 日期=2026-09-28 主力净流入=-16567350
 
 ============================================================
 [DRY-RUN] 标题：山西焦煤 000983 下午三点｜6.44 ▼-1.38%
@@ -35,6 +35,6 @@ MA5 6.536 ｜ MA20 6.761（收盘低于MA20）
 ============================================================
 (dry-run 模式：未对外发送，也未写入发送日志)
 
-2026-09-28 04:29:58 [INFO] ===== 完成 下午三点 -> dry-run 完成，未发送 =====
+2026-09-28 04:33:04 [INFO] ===== 完成 下午三点 -> dry-run 完成，未发送 =====
 
 [ok] dry-run 完成，未发送
