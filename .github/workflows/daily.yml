@@ -9,9 +9,11 @@ name: 焦煤日报
 #      诊断发现凭证或取数异常时才往 QQ 发一条告警。见下方"远程补发"说明。
 #
 # 【远程补发】在 push 的 commit 信息里带标记可远程命令云端出报（标记带冒号，避免日常文字误撞）：
-#   补发:  DAILY-SEND:market_close        → 立刻按正式模式出收盘报告（自动跳过去重）
-#          DAILY-SEND:market_open / DAILY-SEND:morning_ten
-#   维护:  DAILY-RESET-DEDUP              → 清掉云端当日发送去重记录（不改行情历史）
+#   幂等补发: DAILY-SEND:market_close      → 立刻按正式模式出收盘报告；当天该时段已发过则自动跳过
+#             DAILY-SEND:market_open / DAILY-SEND:morning_ten
+#             可无脑重复触发，不会造成重复消息（适合做"保底补发"）
+#   强制重发: DAILY-RESEND:market_close    → 跳过去重，明知会重复也照发
+#   维护:     DAILY-RESET-DEDUP            → 清掉云端当日发送去重记录（不改行情历史）
 #   ⚠️ 写 commit 信息时不要原样写出这些标记，否则会被误触发。
 #
 # cron 是 UTC，北京时间 = UTC + 8：
@@ -130,9 +132,15 @@ jobs:
           MODE="${{ github.event.inputs.mode }}"
           if [ "${{ github.event_name }}" = "push" ]; then
             case "$COMMIT_MSG" in
-              *'DAILY-SEND:market_open'*)  MODE='正式推送'; SLOT=market_open;  FORCE=yes ;;
-              *'DAILY-SEND:morning_ten'*)  MODE='正式推送'; SLOT=morning_ten;  FORCE=yes ;;
-              *'DAILY-SEND:market_close'*) MODE='正式推送'; SLOT=market_close; FORCE=yes ;;
+              # 强制重发：跳过去重，明知会重复也照发
+              *'DAILY-RESEND:market_open'*)  MODE='正式推送'; SLOT=market_open;  FORCE=yes ;;
+              *'DAILY-RESEND:morning_ten'*)  MODE='正式推送'; SLOT=morning_ten;  FORCE=yes ;;
+              *'DAILY-RESEND:market_close'*) MODE='正式推送'; SLOT=market_close; FORCE=yes ;;
+              # 幂等补发：当天该时段已推送过则自动跳过。
+              # 这样"保底补发"可以无脑重复触发，绝不会造成重复消息。
+              *'DAILY-SEND:market_open'*)    MODE='正式推送'; SLOT=market_open;  FORCE=no ;;
+              *'DAILY-SEND:morning_ten'*)    MODE='正式推送'; SLOT=morning_ten;  FORCE=no ;;
+              *'DAILY-SEND:market_close'*)   MODE='正式推送'; SLOT=market_close; FORCE=no ;;
               *) MODE='只做诊断' ;;
             esac
             if printf '%s' "$COMMIT_MSG" | grep -q 'DAILY-RESET-DEDUP'; then RESET=yes; fi
