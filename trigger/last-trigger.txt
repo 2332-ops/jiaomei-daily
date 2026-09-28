@@ -1,0 +1,12 @@
+# 本文件的唯一用途：给「手动触发云端」提供一个真实的文件改动。
+#
+# 为什么需要它：workflow 配了 push: paths-ignore: ['status/**']，
+# 而**空提交（git commit --allow-empty）不会触发 workflow**——实测推了 75 秒毫无反应，
+# 带文件改动的推送则 30 秒内起跑。所以远程补发必须改一个真实文件。
+#
+# 触发方式：改本文件 + 在 commit 信息里带标记，例如
+#   DAILY-SEND:market_close    → 幂等补发（当天已发过则跳过，可安全重复触发）
+#   DAILY-RESEND:market_close  → 强制重发（明知重复也照发）
+#   DAILY-RESET-DEDUP          → 清掉云端当日发送去重记录
+#
+# 首次建立：2026-09-28 12:36
