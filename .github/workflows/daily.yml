@@ -32,7 +32,7 @@ on:
       slot:
         description: '要跑的时段'
         type: choice
-        required: true
+        required: false        # 外部定时器调用时只传这个（或全不传走默认）
         default: 'market_close'
         options:
           - market_open
@@ -41,7 +41,7 @@ on:
       mode:
         description: '运行方式'
         type: choice
-        required: true
+        required: false        # 默认即「正式推送」，外部定时器无需传此参数
         default: '正式推送'
         options:
           - '正式推送'
