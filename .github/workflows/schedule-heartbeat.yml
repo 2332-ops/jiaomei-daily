@@ -1,0 +1,41 @@
+name: 调度心跳测试（临时，测完删除）
+
+# 目的：验证 GitHub 的 schedule 定时器在这个仓库里到底会不会触发。
+# 只往 status/heartbeat.txt 追加一行时间，不发消息、不碰行情、不写业务库。
+# 定位完成后本文件应当被删除。
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: schedule-heartbeat
+  cancel-in-progress: false
+
+jobs:
+  beat:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 记录心跳
+        run: |
+          mkdir -p status
+          echo "触发方式=${{ github.event_name }}   UTC=$(date -u '+%F %T')   北京=$(TZ=Asia/Shanghai date '+%F %T')" >> status/heartbeat.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add status/heartbeat.txt
+          git commit -q -m "心跳 ${{ github.event_name }} $(TZ=Asia/Shanghai date '+%F %T')"
+          if git push -q origin HEAD:main 2>/dev/null; then
+            echo "心跳已回写"
+          else
+            git pull -q --rebase origin main
+            git push -q origin HEAD:main
+            echo "心跳已回写（rebase 兜底）"
+          fi
