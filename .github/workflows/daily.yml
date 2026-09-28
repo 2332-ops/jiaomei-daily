@@ -16,6 +16,15 @@ name: 焦煤日报
 #   维护:     DAILY-RESET-DEDUP            → 清掉云端当日发送去重记录（不改行情历史）
 #   ⚠️ 写 commit 信息时不要原样写出这些标记，否则会被误触发。
 #
+# ⚠️ 实测结论（2026-09-28）：本仓库的 GitHub schedule 定时器从未触发过，一次都没有。
+#    证据：临时心跳工作流（cron 每 10 分钟一次、避开整点）在 main 上挂了约 80 分钟、
+#    错过 8 个应触发窗口，零心跳提交；/actions/runs?event=schedule 的 total_count 始终为 0；
+#    同期 push 触发 8 次、8 次全部在 30 秒内起跑。已排除程序、凭证、网络、默认分支等因素。
+#    → 下方 cron 仅作为「免费兜底」保留：万一 GitHub 恢复调度它就会生效，
+#      与外部定时器（cron-job.org 调 workflow_dispatch）并存也不会重复发送，
+#      因为正式推送路径不带 --force，send_log 去重会挡住后到的那一次。
+#    → 真正的定时靠外部唤醒，排查全过程见 MAINTENANCE.md。
+#
 # cron 是 UTC，北京时间 = UTC + 8：
 #   01:37 UTC = 09:37 北京（开盘）
 #   02:03 UTC = 10:03 北京（上午十点）
