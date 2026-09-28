@@ -155,7 +155,11 @@ jobs:
             if printf '%s' "$COMMIT_MSG" | grep -q 'DAILY-RESET-DEDUP'; then RESET=yes; fi
           fi
           if [ -z "$MODE" ]; then MODE='正式推送'; fi
-          if [ "$MODE" = '只做诊断' ]; then DIAG=yes; else DIAG=no; fi
+          # 失败方向必须安全：只有**明确**是「正式推送」才真发消息；
+          # 其余情况（取值异常、拼写不一致、编码被破坏）一律按诊断处理，绝不误发。
+          # 注：workflow_dispatch 未传 mode 时，github.event.inputs.mode 会自动取到默认值「正式推送」，
+          #     所以外部定时器只传 slot（或全不传）即可正常出报。
+          if [ "$MODE" = '正式推送' ]; then DIAG=no; else DIAG=yes; fi
 
           echo "slot=$SLOT" >> "$GITHUB_OUTPUT"
           echo "diag=$DIAG" >> "$GITHUB_OUTPUT"
