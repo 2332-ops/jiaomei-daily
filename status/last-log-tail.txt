@@ -1,22 +1,22 @@
-2026-09-28 04:32:55 [WARNING] 请求失败 1/1 https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=30&… -> ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
-2026-09-28 04:32:57 [WARNING] 请求失败 1/1 https://push2.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=30&klt… -> HTTP 502
-2026-09-28 04:33:00 [WARNING] 请求失败 1/1 https://push2delay.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=3… -> HTTP 502
-2026-09-28 04:33:04 [INFO] 资金流取数成功，来源=eastmoney_minute@push2.eastmoney.com[requests] 日期=2026-09-28 主力净流入=-16567350
+2026-09-28 05:22:44 [WARNING] 请求失败 1/1 https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=30&… -> ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+2026-09-28 05:22:46 [WARNING] 请求失败 1/1 https://push2.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=30&klt… -> HTTP 502
+2026-09-28 05:22:50 [WARNING] 请求失败 1/1 https://push2delay.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=3… -> HTTP 502
+2026-09-28 05:22:54 [INFO] 资金流取数成功，来源=eastmoney_minute@push2.eastmoney.com[requests] 日期=2026-09-28 主力净流入=-16356454
 
 ============================================================
-[DRY-RUN] 标题：山西焦煤 000983 下午三点｜6.44 ▼-1.38%
+[DRY-RUN] 标题：山西焦煤 000983 下午三点｜6.47 ▼-0.92%
 ------------------------------------------------------------
 山西焦煤 000983 ｜ 下午三点摘要
-2026-09-28 12:05:36 当日定稿
+2026-09-28 13:22:36 当日定稿
 
-收盘 6.44 ▼-1.38%（-0.09）
+收盘 6.47 ▼-0.92%（-0.06）
 今开 6.50 ｜ 高 6.50 ｜ 低 6.38
-振幅 1.84% ｜ 换手 0.49% ｜ 量比 1.02
-成交 27.70万手 / 1.78亿
+振幅 1.84% ｜ 换手 0.55% ｜ 量比 0.98
+成交 31.42万手 / 2.02亿
 
 【大资金】
-主力净流入 -1657万
-超大单 -1361万 ｜ 大单 -296万
+主力净流入 -1636万
+超大单 -1255万 ｜ 大单 -380万
 近1日主力合计 +1347万（本地存档累计，满5日后完整）
 
 【近5日走势】
@@ -24,17 +24,17 @@
 09-22  6.62 ▲+0.30%
 09-23  6.49 ▼-1.96%
 09-24  6.53 ▲+0.62%
-09-28  6.44 ▼-1.38%
-5日累计 +0.00% ｜ 区间 6.38~6.64
-5日均量 48.14万手（今日 0.58×）
+09-28  6.47 ▼-0.92%
+5日累计 +0.47% ｜ 区间 6.38~6.64
+5日均量 48.89万手（今日 0.64×）
 
-MA5 6.536 ｜ MA20 6.761（收盘低于MA20）
+MA5 6.542 ｜ MA20 6.762（收盘低于MA20）
 
 数据源：行情 tencent / 资金 eastmoney_minute@push2.eastmoney.com[requests] / 日K 前复权
 仅供参考，不构成投资建议
 ============================================================
 (dry-run 模式：未对外发送，也未写入发送日志)
 
-2026-09-28 04:33:04 [INFO] ===== 完成 下午三点 -> dry-run 完成，未发送 =====
+2026-09-28 05:22:54 [INFO] ===== 完成 下午三点 -> dry-run 完成，未发送 =====
 
 [ok] dry-run 完成，未发送
