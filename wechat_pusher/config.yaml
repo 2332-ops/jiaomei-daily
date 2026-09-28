@@ -40,7 +40,7 @@ channels:
   # 【当前启用】QQ 机器人 —— QQ 群 / QQ 单聊（QQ 开放平台官方接口）
   #
   # 本机已完成：
-  #   ✅ 机器人「焦煤日报」已创建（AppID 1905676597，robot_uin 4013842071）
+  #   ✅ 机器人「焦煤日报」已创建（AppID 见环境变量 QQ_BOT_APPID）
   #   ✅ QQ_BOT_APPID / QQ_BOT_SECRET 已写入用户环境变量，实测能取到 access_token
   #   ✅ 本机公网 IP = 183.191.164.0（上线后要填进「开发设置」→ IP 白名单）
   #   ⬜ 还差 user_openid —— 它不是 QQ 号、无法反查，只能由平台在消息事件里下发

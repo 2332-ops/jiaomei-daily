@@ -51,8 +51,6 @@ concurrency:
 
 jobs:
   run:
-    # 状态回写是机器人自己提交的，不能反过来再触发一次运行
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -99,6 +97,11 @@ jobs:
       # 定时任务会有几分钟排队延迟，按时间猜会把 9:35 的开盘跑误判成"上午十点"。
       - name: 确定运行参数
         id: plan
+        env:
+          # 远程遥控用：推送代码时若 commit 信息里带 [正式推送]，就按正式模式出报，
+          # 可用 [slot:market_open] / [slot:morning_ten] / [slot:market_close] 指定时段。
+          # 不带标记的推送一律只做诊断，绝不会误发日报。
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
         run: |
           CRON="${{ github.event.schedule }}"
           case "$CRON" in
@@ -117,13 +120,19 @@ jobs:
           fi
 
           MODE="${{ github.event.inputs.mode }}"
-          if [ -z "$MODE" ]; then
-            if [ "${{ github.event_name }}" = "push" ]; then
-              MODE='只做诊断'
-            else
+          if [ -z "$MODE" ] && [ "${{ github.event_name }}" = "push" ]; then
+            if printf '%s' "$COMMIT_MSG" | grep -q '\[正式推送\]'; then
               MODE='正式推送'
+              case "$COMMIT_MSG" in
+                *'[slot:market_open]'*)  SLOT=market_open ;;
+                *'[slot:morning_ten]'*)  SLOT=morning_ten ;;
+                *'[slot:market_close]'*) SLOT=market_close ;;
+              esac
+            else
+              MODE='只做诊断'
             fi
           fi
+          if [ -z "$MODE" ]; then MODE='正式推送'; fi
           if [ "$MODE" = '只做诊断' ]; then DIAG=yes; else DIAG=no; fi
 
           echo "slot=$SLOT" >> "$GITHUB_OUTPUT"
@@ -150,24 +159,29 @@ jobs:
           cd jiaomei_tracker
           python run.py --slot "${{ steps.plan.outputs.slot }}" --dry-run --force 2>&1 | tee /tmp/daily.log
 
-      - name: 诊断结果发到 QQ
+      # 诊断只把结果写进 status/（上面那步），**不出错就不打扰用户**：
+      # 只有凭证或取数确实失败时，才往 QQ 发一条告警。
+      - name: 诊断失败才告警到 QQ
         if: steps.plan.outputs.diag == 'yes'
         continue-on-error: true
         run: |
+          CRED_OK=$(grep -c '\[OK\]' /tmp/selfcheck.log 2>/dev/null || true)
+          QUOTE_OK=$(grep -c '行情取数成功' /tmp/daily.log 2>/dev/null || true)
+          if [ "$CRED_OK" -gt 0 ] && [ "$QUOTE_OK" -gt 0 ]; then
+            echo "云端诊断通过（凭证与取数均正常），按设计不发送消息"
+            exit 0
+          fi
           BJ=$(TZ=Asia/Shanghai date '+%F %T')
           CRED=$(grep -v '^[[:space:]]*$' /tmp/selfcheck.log 2>/dev/null | tail -1)
-          QUOTE=$(grep -E '行情取数成功|取数失败|全部数据源' /tmp/daily.log 2>/dev/null | tail -1)
           LAST=$(grep -v '^[[:space:]]*$' /tmp/daily.log 2>/dev/null | tail -1)
           {
             echo "时间：$BJ"
-            echo "触发：代码推送（自动诊断）"
-            echo "凭证：${CRED:-无输出}"
-            echo "取数：${QUOTE:-无输出}"
-            echo "结论：${LAST:-无输出}"
-            echo "（诊断消息，不发日报；正式日报仍按 09:35 / 10:00 / 15:02 定时推送）"
+            echo "凭证自检：${CRED:-无输出}"
+            echo "取数结果：${LAST:-无输出}"
+            echo "（这是云端自检失败告警；正常时不会发消息）"
           } > /tmp/diag.txt
           cd wechat_pusher
-          python send.py --only qq_bot --title "云端自检" --text "$(cat /tmp/diag.txt)"
+          python send.py --only qq_bot --title "⚠️ 云端自检异常" --text "$(cat /tmp/diag.txt)"
 
       # ---------- 正式模式：正常出日报并推送 ----------
       - name: 运行日报（正式推送）
