@@ -1,7 +1,7 @@
-2026-09-28 04:16:04 [WARNING] 请求失败 1/1 https://push2delay.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=3… -> HTTP 502
-2026-09-28 04:16:12 [WARNING] 请求失败 1/1 https://push2.eastmoney.com/api/qt/stock/fflow/kline/get?lmt=0&klt=1&s… -> HTTP 502
-2026-09-28 04:16:15 [WARNING] 请求失败 1/1 https://push2delay.eastmoney.com/api/qt/stock/fflow/kline/get?lmt=0&kl… -> HTTP 502
-2026-09-28 04:16:17 [WARNING] 全部资金流源均失败（报告将标注未取到）: eastmoney_day@push2his.eastmoney.com[requests]: 请求最终失败: https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=30&… (('Connection aborte… | eastmoney_day@push2his.eastmoney.com[curl]: curl 退出码 52: curl: (52) Empty reply from server | eastmoney_day@push2his.eastmoney.com[curl-direct]: curl 退出码 52: curl: (52) Empty reply from server | eastmoney_day@push2.eastmoney.com[requests]: 请求最终失败: https://push2.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=30&klt… (HTTP 502) | eastmoney_day@push2.eastmoney.com[curl]: Expecting value: line 1 column 1 (char 0) | eastmoney_day@push2.eastmoney.com[curl-direct]: Expecting value: line 1 column 1 (char 0) | eastmoney_day@push2delay.eastmoney.com[requests]: 请求最终失败: https://push2delay.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=3… (HTTP 502) | eastmoney_day@push2delay.eastmoney.com[curl]: Expecting value: line 1 column 1 (char 0)
+2026-09-28 04:29:46 [WARNING] 请求失败 1/1 https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=30&… -> ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+2026-09-28 04:29:48 [WARNING] 请求失败 1/1 https://push2.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=30&klt… -> HTTP 502
+2026-09-28 04:29:52 [WARNING] 请求失败 1/1 https://push2delay.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=3… -> HTTP 502
+2026-09-28 04:29:58 [INFO] 资金流取数成功，来源=eastmoney_minute@push2.eastmoney.com[requests] 日期=2026-09-28 主力净流入=-16567350
 
 ============================================================
 [DRY-RUN] 标题：山西焦煤 000983 下午三点｜6.44 ▼-1.38%
@@ -15,9 +15,9 @@
 成交 27.70万手 / 1.78亿
 
 【大资金】
-主力资金未取到（数据源不可用）
-参考：主动买-主动卖 -36200 手
-（内外盘口径，非主力净流入，仅供方向参考）
+主力净流入 -1657万
+超大单 -1361万 ｜ 大单 -296万
+近1日主力合计 +1347万（本地存档累计，满5日后完整）
 
 【近5日走势】
 09-21  6.60 ▲+2.48%
@@ -30,11 +30,11 @@
 
 MA5 6.536 ｜ MA20 6.761（收盘低于MA20）
 
-数据源：行情 tencent / 日K 前复权
+数据源：行情 tencent / 资金 eastmoney_minute@push2.eastmoney.com[requests] / 日K 前复权
 仅供参考，不构成投资建议
 ============================================================
 (dry-run 模式：未对外发送，也未写入发送日志)
 
-2026-09-28 04:16:17 [INFO] ===== 完成 下午三点 -> dry-run 完成，未发送 =====
+2026-09-28 04:29:58 [INFO] ===== 完成 下午三点 -> dry-run 完成，未发送 =====
 
 [ok] dry-run 完成，未发送
