@@ -4,8 +4,14 @@ name: 焦煤日报
 #   1) 定时（正式推送）：周一至周五，北京时间 09:35 / 10:00 / 15:02
 #      —— 法定节假日由程序内部的交易日守卫（行情时间戳）自动跳过，不需要维护日历
 #   2) 手动 workflow_dispatch：可选手动跑「正式推送」或「只做诊断」
-#   3) 推送代码（push 到 main）：自动跑一次【诊断】，不发日报，
-#      用来确认云端到底能不能取数、凭证是否有效（诊断结果同时写进 status/ 并发到 QQ）
+#   3) 推送代码（push 到 main）：默认自动跑一次【诊断】，只写 status/、不发日报；
+#      诊断发现凭证或取数异常时才往 QQ 发一条告警。见下方"远程补发"说明。
+#
+# 【远程补发】在 push 的 commit 信息里带标记可远程命令云端出报（标记带冒号，避免日常文字误撞）：
+#   补发:  DAILY-SEND:market_close        → 立刻按正式模式出收盘报告（自动跳过去重）
+#          DAILY-SEND:market_open / DAILY-SEND:morning_ten
+#   维护:  DAILY-RESET-DEDUP              → 清掉云端当日发送去重记录（不改行情历史）
+#   ⚠️ 写 commit 信息时不要原样写出这些标记，否则会被误触发。
 #
 # cron 是 UTC，北京时间 = UTC + 8：
 #   01:35 UTC = 09:35 北京（开盘）
@@ -93,14 +99,11 @@ jobs:
           fi
           echo "凭证文件已生成（未回显内容，长度：$(wc -c < wechat_pusher/.env) 字节）"
 
-      # 时段用**触发它的那条 cron 原文**来判定，而不是按当前时间猜：
+      # 时段优先用**触发它的那条 cron 原文**判定，而不是按当前时间猜：
       # 定时任务会有几分钟排队延迟，按时间猜会把 9:35 的开盘跑误判成"上午十点"。
       - name: 确定运行参数
         id: plan
         env:
-          # 远程遥控用：推送代码时若 commit 信息里带 [正式推送]，就按正式模式出报，
-          # 可用 [slot:market_open] / [slot:morning_ten] / [slot:market_close] 指定时段。
-          # 不带标记的推送一律只做诊断，绝不会误发日报。
           COMMIT_MSG: ${{ github.event.head_commit.message }}
         run: |
           CRON="${{ github.event.schedule }}"
@@ -119,25 +122,50 @@ jobs:
             esac
           fi
 
+          FORCE=no
+          RESET=no
           MODE="${{ github.event.inputs.mode }}"
-          if [ -z "$MODE" ] && [ "${{ github.event_name }}" = "push" ]; then
-            if printf '%s' "$COMMIT_MSG" | grep -q '\[正式推送\]'; then
-              MODE='正式推送'
-              case "$COMMIT_MSG" in
-                *'[slot:market_open]'*)  SLOT=market_open ;;
-                *'[slot:morning_ten]'*)  SLOT=morning_ten ;;
-                *'[slot:market_close]'*) SLOT=market_close ;;
-              esac
-            else
-              MODE='只做诊断'
-            fi
+          if [ "${{ github.event_name }}" = "push" ]; then
+            case "$COMMIT_MSG" in
+              *'DAILY-SEND:market_open'*)  MODE='正式推送'; SLOT=market_open;  FORCE=yes ;;
+              *'DAILY-SEND:morning_ten'*)  MODE='正式推送'; SLOT=morning_ten;  FORCE=yes ;;
+              *'DAILY-SEND:market_close'*) MODE='正式推送'; SLOT=market_close; FORCE=yes ;;
+              *) MODE='只做诊断' ;;
+            esac
+            if printf '%s' "$COMMIT_MSG" | grep -q 'DAILY-RESET-DEDUP'; then RESET=yes; fi
           fi
           if [ -z "$MODE" ]; then MODE='正式推送'; fi
           if [ "$MODE" = '只做诊断' ]; then DIAG=yes; else DIAG=no; fi
 
           echo "slot=$SLOT" >> "$GITHUB_OUTPUT"
           echo "diag=$DIAG" >> "$GITHUB_OUTPUT"
-          echo "时段=$SLOT  方式=$MODE  触发=${{ github.event_name }}  北京时间=$(TZ=Asia/Shanghai date '+%F %T')"
+          echo "force=$FORCE" >> "$GITHUB_OUTPUT"
+          echo "reset=$RESET" >> "$GITHUB_OUTPUT"
+          echo "时段=$SLOT  方式=$MODE  补发跳过去重=$FORCE  重置去重=$RESET  触发=${{ github.event_name }}"
+
+      # 维护动作：清掉云端当日 send_log（去重键），行情与资金流历史保留。
+      # 用途：手动补发后不想让当天的定时推送被误判成"已发送过"。
+      - name: 重置当日去重记录
+        if: steps.plan.outputs.reset == 'yes'
+        continue-on-error: true
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          cd jiaomei_tracker
+          python - <<'PY' 2>&1 | tee /tmp/reset.log
+          import sqlite3, datetime, pathlib
+          p = pathlib.Path('data/tracker.db')
+          if not p.exists():
+              print('数据库不存在，无需重置')
+              raise SystemExit(0)
+          today = datetime.date.today().strftime('%Y-%m-%d')
+          c = sqlite3.connect(p)
+          rows = c.execute("SELECT slot_id,channel,status FROM send_log WHERE trade_date=?", (today,)).fetchall()
+          print('重置前今日记录:', rows)
+          n = c.execute("DELETE FROM send_log WHERE trade_date=?", (today,)).rowcount
+          c.commit()
+          print(f'已清空今日去重记录 {n} 条（仅 send_log；行情与资金流历史保留）')
+          PY
 
       # 真取一次 access_token（不发消息）：同时验证「Secrets 配全了」和「云端能连上 QQ 接口」
       - name: 凭证自检
@@ -159,8 +187,7 @@ jobs:
           cd jiaomei_tracker
           python run.py --slot "${{ steps.plan.outputs.slot }}" --dry-run --force 2>&1 | tee /tmp/daily.log
 
-      # 诊断只把结果写进 status/（上面那步），**不出错就不打扰用户**：
-      # 只有凭证或取数确实失败时，才往 QQ 发一条告警。
+      # 诊断只在**确实出问题**时才打扰用户：凭证或取数任一失败才发 QQ 告警。
       - name: 诊断失败才告警到 QQ
         if: steps.plan.outputs.diag == 'yes'
         continue-on-error: true
@@ -184,15 +211,20 @@ jobs:
           python send.py --only qq_bot --title "⚠️ 云端自检异常" --text "$(cat /tmp/diag.txt)"
 
       # ---------- 正式模式：正常出日报并推送 ----------
+      # 手动补发（带 DAILY-SEND 标记）时加 --force：越过交易日守卫与发送去重，
+      # 保证"让发就一定发得出去"；定时任务永远不加 --force。
       - name: 运行日报（正式推送）
         id: run
         if: steps.plan.outputs.diag != 'yes'
         env:
           PYTHONIOENCODING: utf-8
+          FORCE: ${{ steps.plan.outputs.force }}
         run: |
           set -o pipefail
+          EXTRA=""
+          if [ "$FORCE" = "yes" ]; then EXTRA="--force"; fi
           cd jiaomei_tracker
-          python run.py --slot "${{ steps.plan.outputs.slot }}" 2>&1 | tee /tmp/daily.log
+          python run.py --slot "${{ steps.plan.outputs.slot }}" $EXTRA 2>&1 | tee /tmp/daily.log
 
       # 把本次结果写回仓库。即使上一步失败也执行（if: always()），
       # 且自身失败不拖累整个任务（continue-on-error），只做诊断用。
@@ -202,6 +234,8 @@ jobs:
         env:
           SLOT: ${{ steps.plan.outputs.slot }}
           DIAG: ${{ steps.plan.outputs.diag }}
+          FORCE: ${{ steps.plan.outputs.force }}
+          RESET: ${{ steps.plan.outputs.reset }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           mkdir -p status
@@ -211,9 +245,10 @@ jobs:
           {
             echo "北京时间: $BJ_NOW"
             echo "时段: ${SLOT:-未确定}"
-            echo "方式: $([ "$DIAG" = "yes" ] && echo 诊断 || echo 正式推送)"
+            echo "方式: $([ "$DIAG" = "yes" ] && echo 诊断 || echo 正式推送)（补发跳过去重: $FORCE，重置去重: $RESET）"
             echo "触发: ${{ github.event_name }}"
             echo "任务结果: ${{ job.status }}"
+            echo "重置去重: $(grep -v '^[[:space:]]*$' /tmp/reset.log 2>/dev/null | tail -1 || echo '（未执行）')"
             echo "凭证自检: ${CRED_LINE:-（无输出）}"
             echo "末尾输出: ${LAST_LINE:-（无日志）}"
             echo "运行页: $RUN_URL"
