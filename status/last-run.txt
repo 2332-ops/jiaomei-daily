@@ -1,8 +1,9 @@
-北京时间: 2026-09-28 11:24:07
+北京时间: 2026-09-28 11:27:19
 时段: market_close
-方式: 正式推送
+方式: 诊断（补发跳过去重: no，重置去重: no）
 触发: push
 任务结果: success
-凭证自检:   [OK]   焦煤日报QQ单聊         凭证可用（access_token 已取到，有效期 6213 秒）｜环境=沙箱｜目标=users/E0E7…9F47(len=32)｜注意：openid 是否正确、机器人是否已上线，只有真发一条才能确认
-末尾输出: [ok] 推送成功（行情日 2026-09-28）
-运行页: https://github.com/2332-ops/jiaomei-daily/actions/runs/36373547486
+重置去重: 
+凭证自检:   [OK]   焦煤日报QQ单聊         凭证可用（access_token 已取到，有效期 6017 秒）｜环境=沙箱｜目标=users/E0E7…9F47(len=32)｜注意：openid 是否正确、机器人是否已上线，只有真发一条才能确认
+末尾输出: [ok] dry-run 完成，未发送
+运行页: https://github.com/2332-ops/jiaomei-daily/actions/runs/36373763890
