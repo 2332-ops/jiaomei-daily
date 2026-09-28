@@ -1,11 +1,16 @@
 name: 焦煤日报
 
-# 时间为 UTC，北京时间 = UTC + 8
+# 触发方式有三种：
+#   1) 定时（正式推送）：周一至周五，北京时间 09:35 / 10:00 / 15:02
+#      —— 法定节假日由程序内部的交易日守卫（行情时间戳）自动跳过，不需要维护日历
+#   2) 手动 workflow_dispatch：可选手动跑「正式推送」或「只做诊断」
+#   3) 推送代码（push 到 main）：自动跑一次【诊断】，不发日报，
+#      用来确认云端到底能不能取数、凭证是否有效（诊断结果同时写进 status/ 并发到 QQ）
+#
+# cron 是 UTC，北京时间 = UTC + 8：
 #   01:35 UTC = 09:35 北京（开盘）
 #   02:00 UTC = 10:00 北京（上午十点）
 #   07:02 UTC = 15:02 北京（收盘）
-# 周一到周五触发；法定节假日由程序内部的交易日守卫（行情时间戳）自动跳过，
-# 不依赖任何外部节假日日历。
 on:
   schedule:
     - cron: '35 1 * * 1-5'
@@ -14,14 +19,26 @@ on:
   workflow_dispatch:
     inputs:
       slot:
-        description: '要跑的时段（手动试跑用）'
+        description: '要跑的时段'
         type: choice
-        required: false
+        required: true
         default: 'market_close'
         options:
           - market_open
           - morning_ten
           - market_close
+      mode:
+        description: '运行方式'
+        type: choice
+        required: true
+        default: '正式推送'
+        options:
+          - '正式推送'
+          - '只做诊断'
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'status/**'
 
 # 需要写权限：每次运行后把运行状态回写到 status/ 目录，
 # 这样不接触运行日志也能从仓库里看到最近一次跑成什么样。
@@ -34,6 +51,8 @@ concurrency:
 
 jobs:
   run:
+    # 状态回写是机器人自己提交的，不能反过来再触发一次运行
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -74,34 +93,92 @@ jobs:
             echo "::error::存在空的 Secret，请到仓库 Settings -> Secrets and variables -> Actions 检查 QQ_BOT_APPID / QQ_BOT_SECRET / QQ_BOT_USER_OPENID 三个值是否都已填写"
             exit 1
           fi
-          echo "凭证文件已生成（未回显内容）"
+          echo "凭证文件已生成（未回显内容，长度：$(wc -c < wechat_pusher/.env) 字节）"
 
-      - name: 确定时段
-        id: slot
+      # 时段用**触发它的那条 cron 原文**来判定，而不是按当前时间猜：
+      # 定时任务会有几分钟排队延迟，按时间猜会把 9:35 的开盘跑误判成"上午十点"。
+      - name: 确定运行参数
+        id: plan
         run: |
-          INPUT="${{ github.event.inputs.slot }}"
-          if [ -n "$INPUT" ]; then
-            SLOT="$INPUT"
-          else
+          CRON="${{ github.event.schedule }}"
+          case "$CRON" in
+            '35 1 * * 1-5') SLOT=market_open ;;
+            '0 2 * * 1-5')  SLOT=morning_ten ;;
+            '2 7 * * 1-5')  SLOT=market_close ;;
+            *) SLOT="${{ github.event.inputs.slot }}" ;;
+          esac
+          if [ -z "$SLOT" ]; then
             BJ=$(TZ=Asia/Shanghai date +%H%M)
             case "$BJ" in
               09*) SLOT=market_open ;;
               10*) SLOT=morning_ten ;;
-              15*) SLOT=market_close ;;
               *)   SLOT=market_close ;;
             esac
           fi
-          echo "slot=$SLOT" >> "$GITHUB_OUTPUT"
-          echo "时段=$SLOT  北京时间=$(TZ=Asia/Shanghai date '+%F %T')"
 
-      - name: 运行日报
-        id: run
+          MODE="${{ github.event.inputs.mode }}"
+          if [ -z "$MODE" ]; then
+            if [ "${{ github.event_name }}" = "push" ]; then
+              MODE='只做诊断'
+            else
+              MODE='正式推送'
+            fi
+          fi
+          if [ "$MODE" = '只做诊断' ]; then DIAG=yes; else DIAG=no; fi
+
+          echo "slot=$SLOT" >> "$GITHUB_OUTPUT"
+          echo "diag=$DIAG" >> "$GITHUB_OUTPUT"
+          echo "时段=$SLOT  方式=$MODE  触发=${{ github.event_name }}  北京时间=$(TZ=Asia/Shanghai date '+%F %T')"
+
+      # 真取一次 access_token（不发消息）：同时验证「Secrets 配全了」和「云端能连上 QQ 接口」
+      - name: 凭证自检
+        id: selfcheck
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          cd wechat_pusher
+          python send.py --only qq_bot --check 2>&1 | tee /tmp/selfcheck.log
+
+      # ---------- 诊断模式：只验链路，不发日报 ----------
+      - name: 取数自检（dry-run，不发送、不落库）
+        id: diyrun
+        if: steps.plan.outputs.diag == 'yes'
         env:
           PYTHONIOENCODING: utf-8
         run: |
           set -o pipefail
           cd jiaomei_tracker
-          python run.py --slot "${{ steps.slot.outputs.slot }}" 2>&1 | tee /tmp/daily.log
+          python run.py --slot "${{ steps.plan.outputs.slot }}" --dry-run --force 2>&1 | tee /tmp/daily.log
+
+      - name: 诊断结果发到 QQ
+        if: steps.plan.outputs.diag == 'yes'
+        continue-on-error: true
+        run: |
+          BJ=$(TZ=Asia/Shanghai date '+%F %T')
+          CRED=$(grep -v '^[[:space:]]*$' /tmp/selfcheck.log 2>/dev/null | tail -1)
+          QUOTE=$(grep -E '行情取数成功|取数失败|全部数据源' /tmp/daily.log 2>/dev/null | tail -1)
+          LAST=$(grep -v '^[[:space:]]*$' /tmp/daily.log 2>/dev/null | tail -1)
+          {
+            echo "时间：$BJ"
+            echo "触发：代码推送（自动诊断）"
+            echo "凭证：${CRED:-无输出}"
+            echo "取数：${QUOTE:-无输出}"
+            echo "结论：${LAST:-无输出}"
+            echo "（诊断消息，不发日报；正式日报仍按 09:35 / 10:00 / 15:02 定时推送）"
+          } > /tmp/diag.txt
+          cd wechat_pusher
+          python send.py --only qq_bot --title "云端自检" --text "$(cat /tmp/diag.txt)"
+
+      # ---------- 正式模式：正常出日报并推送 ----------
+      - name: 运行日报（正式推送）
+        id: run
+        if: steps.plan.outputs.diag != 'yes'
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          set -o pipefail
+          cd jiaomei_tracker
+          python run.py --slot "${{ steps.plan.outputs.slot }}" 2>&1 | tee /tmp/daily.log
 
       # 把本次结果写回仓库。即使上一步失败也执行（if: always()），
       # 且自身失败不拖累整个任务（continue-on-error），只做诊断用。
@@ -109,21 +186,26 @@ jobs:
         if: always()
         continue-on-error: true
         env:
-          SLOT: ${{ steps.slot.outputs.slot }}
-          OUTCOME: ${{ steps.run.outcome }}
+          SLOT: ${{ steps.plan.outputs.slot }}
+          DIAG: ${{ steps.plan.outputs.diag }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           mkdir -p status
           BJ_NOW=$(TZ=Asia/Shanghai date '+%F %T')
           LAST_LINE=$(grep -v '^[[:space:]]*$' /tmp/daily.log 2>/dev/null | tail -1)
+          CRED_LINE=$(grep -v '^[[:space:]]*$' /tmp/selfcheck.log 2>/dev/null | tail -1)
           {
             echo "北京时间: $BJ_NOW"
-            echo "时段: $SLOT"
-            echo "结果: $OUTCOME"
+            echo "时段: ${SLOT:-未确定}"
+            echo "方式: $([ "$DIAG" = "yes" ] && echo 诊断 || echo 正式推送)"
+            echo "触发: ${{ github.event_name }}"
+            echo "任务结果: ${{ job.status }}"
+            echo "凭证自检: ${CRED_LINE:-（无输出）}"
             echo "末尾输出: ${LAST_LINE:-（无日志）}"
             echo "运行页: $RUN_URL"
           } > status/last-run.txt
           tail -n 40 /tmp/daily.log > status/last-log-tail.txt 2>/dev/null || true
+          cp /tmp/diag.txt status/last-diag.txt 2>/dev/null || true
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
