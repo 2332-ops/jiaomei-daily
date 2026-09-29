@@ -21,7 +21,7 @@ import re
 import shutil
 import subprocess
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import requests
 
@@ -229,6 +229,7 @@ def _parse_tencent_quote(text: str) -> dict:
         "float_mcap_yi": _to_float(fields[44]),
         "total_mcap_yi": _to_float(fields[45]),
         "pb": _to_float(fields[46]),
+        "pe_ttm": pick("pe_ttm"),
         "limit_up": _to_float(fields[47]),
         "limit_down": _to_float(fields[48]),
         "volume_ratio": _to_float(fields[49]),
@@ -522,11 +523,249 @@ def fetch_fundflow(client: HttpClient, cfg: dict) -> dict | None:
     return None
 
 
+# ---------------------------------------------------------------- 期货主连
+#
+# 为什么单列一节：焦煤期货是山西焦煤股价的"方向锚"——它变化频率最高、对短线
+# 影响最大，所以报告里排第一位（见 report.py 的优先级结构）。
+#
+# 数据源选型（2026-09-29 实测）：
+#   新浪  hq.sinajs.cn/list=nf_JM0（需 Referer）        ✅ 快照，GBK
+#   新浪  stock2.finance.sina.com.cn/.../getDailyKLine  ✅ 日K（返回全历史，取尾部）
+#   腾讯  qt.gtimg.cn/q=nf_JM0                          ❌ 不支持期货
+#   东财  push2.eastmoney.com secid=114.jmm             ❌ 仅返回昨收，无实时价
+#
+# 字段位交叉核对（用焦煤主连 2026-09-29 当日数据双向验证，两边完全吻合）：
+#   快照 f[2]=开 1461.0  f[3]=高 1472.5  f[4]=低 1435.0  f[8]=最新 1448.0
+#   日K  开 1461.000     高 1472.500     低 1435.000     收 1448.000
+#   快照 f[13]=持仓 413036  f[14]=成交量 405245
+#   日K  仓 413036          量 405245
+#   ⚠️ 注意 f[5] 实测**不是昨收**（它与最新价同为 1448 而 09-28 实际收 1457.5），
+#      所以昨收一律从日K取，绝不用 f[5]。
+
+_FUT_SNAPSHOT_URL = "https://hq.sinajs.cn/list=nf_{sym}"
+_FUT_KLINE_URL = ("https://stock2.finance.sina.com.cn/futures/api/jsonp.php/"
+                  "var%20_{sym}=/InnerFuturesNewService.getDailyKLine?symbol={sym}")
+
+
+def _parse_futures_snapshot(text: str) -> dict:
+    match = re.search(r'="([^"]*)"', text)
+    if not match or not match.group(1).strip():
+        raise FetchError("期货行情返回为空")
+    f = match.group(1).split(",")
+    if len(f) < 18:
+        raise FetchError(f"期货行情字段数异常: {len(f)}")
+    quote = {
+        "name": f[0].strip(),
+        "quote_time": f[1].strip(),
+        "open": _to_float(f[2]),
+        "high": _to_float(f[3]),
+        "low": _to_float(f[4]),
+        "price": _to_float(f[8]),
+        "prev_settle": _to_float(f[9]),
+        "open_interest": _to_float(f[13]),
+        "volume": _to_float(f[14]),
+        "trade_date": f[17].strip(),
+        "source": "sina_futures",
+    }
+    if not quote["price"] or quote["price"] <= 0:
+        raise FetchError("期货最新价无效（<=0）")
+    return quote
+
+
+def _parse_futures_kline(text: str) -> list[dict]:
+    match = re.search(r"\((\[.*\])\)", text, re.S)
+    if not match:
+        raise FetchError("期货日K返回格式异常（未找到 JSONP 数组）")
+    rows = json.loads(match.group(1))
+    out = []
+    for row in rows:
+        out.append({
+            "date": str(row.get("d")),
+            "open": _to_float(row.get("o")),
+            "high": _to_float(row.get("h")),
+            "low": _to_float(row.get("l")),
+            "close": _to_float(row.get("c")),
+            "volume": _to_float(row.get("v")),
+            "open_interest": _to_float(row.get("p")),
+        })
+    if not out:
+        raise FetchError("期货日K解析后为空")
+    return out
+
+
+def fetch_futures(client: HttpClient, cfg: dict) -> list[dict]:
+    """取期货主连（默认焦煤 JM0、焦炭 J0）。
+
+    快照负责"当日开高低与最新价"，日K负责"前收 + 近 N 日走势"——
+    盘中日K可能还没有今天那一根，两种情况都要能算出前收。
+    """
+    logger = get_logger()
+    watch = (cfg.get("watch") or {}).get("futures") or {}
+    if not watch.get("enabled", True):
+        return []
+
+    keep_days = int(watch.get("kline_days", 6) or 6)
+    out: list[dict] = []
+
+    for item in watch.get("items") or []:
+        sym = str(item.get("symbol") or "").strip()
+        if not sym:
+            continue
+        rec: dict = {
+            "symbol": sym,
+            "name": item.get("name") or sym,
+            "repair_above": _to_float(item.get("repair_above")),
+            "repair_zone_high": _to_float(item.get("repair_zone_high")),
+            "break_below": _to_float(item.get("break_below")),
+            "judge": (item.get("judge") or "").strip(),
+            "kline": [],
+        }
+
+        try:
+            text = client.get_text(_FUT_SNAPSHOT_URL.format(sym=sym),
+                                   referer="https://finance.sina.com.cn", encoding="gbk")
+            snapshot = _parse_futures_snapshot(text)
+            # 数据源给的名字是"焦煤连续"，配置里的"焦煤主力"更贴合盯盘语境，故保留配置名，
+            # 把源名另存一份备查（不要用 update 直接覆盖）
+            snapshot["source_name"] = snapshot.pop("name", "")
+            rec.update(snapshot)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("期货快照 %s 不可用: %s", sym, _brief(exc, 110))
+            rec["error"] = _brief(exc, 110)
+            out.append(rec)
+            continue
+
+        try:
+            ktext = client.get_text(_FUT_KLINE_URL.format(sym=sym),
+                                    referer="https://finance.sina.com.cn")
+            rec["kline"] = _parse_futures_kline(ktext)[-keep_days:]
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("期货日K %s 不可用: %s", sym, _brief(exc, 110))
+
+        rows = rec.get("kline") or []
+        today = str(rec.get("trade_date") or "")
+        if rows:
+            if today and rows[-1].get("date") == today and len(rows) >= 2:
+                rec["prev_close"] = rows[-2].get("close")
+            elif not today or rows[-1].get("date") != today:
+                rec["prev_close"] = rows[-1].get("close")
+
+        prev = rec.get("prev_close")
+        if prev and rec.get("price"):
+            rec["change"] = rec["price"] - prev
+            rec["change_pct"] = (rec["price"] / prev - 1) * 100
+
+        logger.info("期货取数成功 %s(%s) 最新=%s 前收=%s 涨跌=%s",
+                    rec["name"], sym, rec.get("price"), prev,
+                    f"{rec.get('change_pct'):.2f}%" if rec.get("change_pct") is not None else "—")
+        out.append(rec)
+
+    return out
+
+
+# ---------------------------------------------------------------- 板块情绪
+#
+# 复用腾讯行情解析：指数（如中证煤炭 399998）与 ETF（如煤炭ETF 515220）的字段位
+# 与个股一致（已实测：指数 f[30]=时间 f[31]=涨跌 f[32]=涨跌幅 f[33]=高 f[34]=低），
+# 因此不必另写解析器。
+
+def fetch_sector(client: HttpClient, cfg: dict) -> list[dict]:
+    """取板块参照物（默认中证煤炭指数 + 煤炭ETF）。"""
+    logger = get_logger()
+    watch = (cfg.get("watch") or {}).get("sector") or {}
+    if not watch.get("enabled", True):
+        return []
+
+    out: list[dict] = []
+    for item in watch.get("items") or []:
+        symbol = str(item.get("symbol") or "").strip()
+        if not symbol:
+            continue
+        rec: dict = {"symbol": symbol, "name": item.get("name") or symbol}
+        try:
+            text = client.get_text(f"https://qt.gtimg.cn/q={symbol}", encoding="gbk")
+            q = _parse_tencent_quote(text)
+            rec.update({
+                "price": q.get("price"),
+                "change": q.get("change"),
+                "change_pct": q.get("change_pct"),
+                "amount_yuan": q.get("amount_yuan"),
+                "quote_time": q.get("quote_time"),
+            })
+            logger.info("板块取数成功 %s(%s) %s %s",
+                        rec["name"], symbol, rec.get("price"), rec.get("change_pct"))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("板块 %s 不可用: %s", symbol, _brief(exc, 110))
+            rec["error"] = _brief(exc, 110)
+        out.append(rec)
+
+    return out
+
+
+# ---------------------------------------------------------------- 公司公告
+#
+# 东财公告接口（2026-09-29 实测可用）。只取"最近 N 天内"的公告——
+# 公告是低频信息，天天推同一条旧公告没有意义，所以必须做时间过滤。
+
+_ANN_URL = ("https://np-anotice-stock.eastmoney.com/api/security/ann"
+            "?sr=-1&page_size={n}&page_index=1&ann_type=A&client_source=web"
+            "&stock_list={code}&f_node=0&s_node=0")
+
+
+def fetch_announcements(client: HttpClient, cfg: dict) -> list[dict]:
+    """取最近的个股公告（标题 + 公告日期）。"""
+    logger = get_logger()
+    watch = (cfg.get("watch") or {}).get("announcements") or {}
+    if not watch.get("enabled", True):
+        return []
+
+    code = re.sub(r"\D", "", str(cfg.get("target", {}).get("code") or ""))
+    if not code:
+        return []
+    lookback = int(watch.get("lookback_days", 10) or 10)
+    limit = int(watch.get("limit", 2) or 2)
+
+    try:
+        text = client.get_text(
+            _ANN_URL.format(n=max(limit * 4, 12), code=code),
+            referer=f"https://quote.eastmoney.com/sz{code}.html",
+        )
+        payload = json.loads(text)
+        rows = ((payload.get("data") or {}).get("list")) or []
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("公告取数失败: %s", _brief(exc, 110))
+        return []
+
+    cutoff = (datetime.now() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+    bare = str(cfg.get("target", {}).get("name") or "")
+    out: list[dict] = []
+    for row in rows:
+        date = str(row.get("notice_date") or "")[:10]
+        title = str(row.get("title") or "").strip()
+        if not date or date < cutoff:
+            continue
+        if bare and title.startswith(bare + ":"):
+            title = title[len(bare) + 1:]
+        out.append({"date": date, "title": title})
+        if len(out) >= limit:
+            break
+
+    if out:
+        logger.info("公告取数成功，%s 天内 %s 条", lookback, len(out))
+    return out
+
+
 def fetch_all(cfg: dict) -> dict:
-    """一次性取齐本轮报告所需数据，返回 {quote, kline, fundflow, warnings}。"""
+    """一次性取齐本轮报告所需数据。
+
+    返回 {quote, kline, fundflow, futures, sector, announcements, warnings}。
+    除行情外全部"能拿多少算多少"，拿不到的写进 warnings 由报告层注明，不影响出报。
+    """
     logger = get_logger()
     client = HttpClient(cfg.get("retry", {}))
-    bundle: dict = {"quote": None, "kline": [], "fundflow": None, "warnings": []}
+    bundle: dict = {"quote": None, "kline": [], "fundflow": None,
+                    "futures": [], "sector": [], "announcements": [],
+                    "warnings": []}
 
     try:
         bundle["quote"] = fetch_quote(client, cfg)
@@ -544,4 +783,24 @@ def fetch_all(cfg: dict) -> dict:
         if bundle["fundflow"] is None:
             bundle["warnings"].append("大资金数据获取失败（数据源不可用，未使用其他口径替代）")
 
+    # 以下三块都是"辅助判断"数据，任一失败只降级不中断
+    try:
+        bundle["futures"] = fetch_futures(client, cfg)
+    except Exception as exc:  # noqa: BLE001
+        bundle["warnings"].append(f"期货数据获取失败：{exc}")
+        logger.warning("期货数据获取失败: %s", exc)
+
+    try:
+        bundle["sector"] = fetch_sector(client, cfg)
+    except Exception as exc:  # noqa: BLE001
+        bundle["warnings"].append(f"板块数据获取失败：{exc}")
+        logger.warning("板块数据获取失败: %s", exc)
+
+    try:
+        bundle["announcements"] = fetch_announcements(client, cfg)
+    except Exception as exc:  # noqa: BLE001
+        bundle["warnings"].append(f"公告数据获取失败：{exc}")
+        logger.warning("公告数据获取失败: %s", exc)
+
     return bundle
+
