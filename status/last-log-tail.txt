@@ -1,40 +1,40 @@
-2026-10-01 01:37:28 [INFO] 公告取数成功，10 天内 1 条
-2026-10-01 01:37:28 [WARNING] 行情日期(2026-09-30)不是今天(2026-10-01)，20 秒后重试 1/3
-2026-10-01 01:37:49 [INFO] 行情取数成功，来源=tencent 现价=6.48 涨跌幅=1.73 时间=2026-09-30 16:15:00
-2026-10-01 01:37:50 [INFO] 日K取数成功，来源=tencent 条数=30 区间=2026-08-19~2026-09-30
-2026-10-01 01:37:51 [WARNING] 请求失败 1/1 https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=30&… -> ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
-2026-10-01 01:37:54 [WARNING] 请求失败 1/1 https://push2.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=30&klt… -> HTTP 502
-2026-10-01 01:37:58 [WARNING] 请求失败 1/1 https://push2delay.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=3… -> HTTP 502
-2026-10-01 01:38:04 [INFO] 资金流取数成功，来源=eastmoney_minute@push2.eastmoney.com[requests] 日期=2026-09-30 主力净流入=-5467284
-2026-10-01 01:38:07 [INFO] 期货取数成功 焦煤主力(JM0) 最新=1449.0 前收=1448.0 涨跌=0.07%
-2026-10-01 01:38:08 [INFO] 期货取数成功 焦炭主力(J0) 最新=1958.5 前收=1942.5 涨跌=0.82%
-2026-10-01 01:38:08 [INFO] 板块取数成功 中证煤炭(sz399998) 2374.0 0.77
-2026-10-01 01:38:08 [INFO] 板块取数成功 煤炭ETF(sh515220) 1.256 0.88
-2026-10-01 01:38:08 [INFO] 公告取数成功，10 天内 1 条
-2026-10-01 01:38:08 [WARNING] 行情日期(2026-09-30)不是今天(2026-10-01)，20 秒后重试 2/3
-2026-10-01 01:38:29 [INFO] 行情取数成功，来源=tencent 现价=6.48 涨跌幅=1.73 时间=2026-09-30 16:15:00
-2026-10-01 01:38:30 [INFO] 日K取数成功，来源=tencent 条数=30 区间=2026-08-19~2026-09-30
-2026-10-01 01:38:32 [WARNING] 请求失败 1/1 https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=30&… -> ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
-2026-10-01 01:38:35 [WARNING] 请求失败 1/1 https://push2.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=30&klt… -> HTTP 502
-2026-10-01 01:38:39 [WARNING] 请求失败 1/1 https://push2delay.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=3… -> HTTP 502
-2026-10-01 01:38:46 [INFO] 资金流取数成功，来源=eastmoney_minute@push2.eastmoney.com[requests] 日期=2026-09-30 主力净流入=-5467284
-2026-10-01 01:38:48 [INFO] 期货取数成功 焦煤主力(JM0) 最新=1449.0 前收=1448.0 涨跌=0.07%
-2026-10-01 01:38:49 [INFO] 期货取数成功 焦炭主力(J0) 最新=1958.5 前收=1942.5 涨跌=0.82%
-2026-10-01 01:38:49 [INFO] 板块取数成功 中证煤炭(sz399998) 2374.0 0.77
-2026-10-01 01:38:49 [INFO] 板块取数成功 煤炭ETF(sh515220) 1.256 0.88
-2026-10-01 01:38:50 [INFO] 公告取数成功，10 天内 1 条
-2026-10-01 01:38:50 [WARNING] 行情日期(2026-09-30)不是今天(2026-10-01)，20 秒后重试 3/3
-2026-10-01 01:39:11 [INFO] 行情取数成功，来源=tencent 现价=6.48 涨跌幅=1.73 时间=2026-09-30 16:15:00
-2026-10-01 01:39:12 [INFO] 日K取数成功，来源=tencent 条数=30 区间=2026-08-19~2026-09-30
-2026-10-01 01:39:13 [WARNING] 请求失败 1/1 https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=30&… -> ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
-2026-10-01 01:39:17 [WARNING] 请求失败 1/1 https://push2.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=30&klt… -> HTTP 502
-2026-10-01 01:39:21 [WARNING] 请求失败 1/1 https://push2delay.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=3… -> HTTP 502
-2026-10-01 01:39:27 [INFO] 资金流取数成功，来源=eastmoney_minute@push2.eastmoney.com[requests] 日期=2026-09-30 主力净流入=-5467284
-2026-10-01 01:39:29 [INFO] 期货取数成功 焦煤主力(JM0) 最新=1449.0 前收=1448.0 涨跌=0.07%
-2026-10-01 01:39:30 [INFO] 期货取数成功 焦炭主力(J0) 最新=1958.5 前收=1942.5 涨跌=0.82%
-2026-10-01 01:39:30 [INFO] 板块取数成功 中证煤炭(sz399998) 2374.0 0.77
-2026-10-01 01:39:31 [INFO] 板块取数成功 煤炭ETF(sh515220) 1.256 0.88
-2026-10-01 01:39:31 [INFO] 公告取数成功，10 天内 1 条
-2026-10-01 01:39:31 [WARNING] 行情最新日期为 2026-09-30（非今日 2026-10-01），判定为休市或数据源未更新，本次不推送
+2026-10-01 02:03:54 [WARNING] 请求失败 1/1 https://push2delay.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=3… -> HTTP 502
+2026-10-01 02:03:59 [INFO] 资金流取数成功，来源=eastmoney_minute@push2.eastmoney.com[requests] 日期=2026-09-30 主力净流入=-5467284
+2026-10-01 02:04:01 [INFO] 期货取数成功 焦煤主力(JM0) 最新=1449.0 前收=1448.0 涨跌=0.07%
+2026-10-01 02:04:02 [INFO] 期货取数成功 焦炭主力(J0) 最新=1958.5 前收=1942.5 涨跌=0.82%
+2026-10-01 02:04:02 [INFO] 板块取数成功 中证煤炭(sz399998) 2374.0 0.77
+2026-10-01 02:04:02 [INFO] 板块取数成功 煤炭ETF(sh515220) 1.256 0.88
+2026-10-01 02:04:02 [INFO] 公告取数成功，10 天内 1 条
+2026-10-01 02:04:02 [WARNING] 行情日期(2026-09-30)不是今天(2026-10-01)，20 秒后重试 2/3
+2026-10-01 02:04:23 [INFO] 行情取数成功，来源=tencent 现价=6.48 涨跌幅=1.73 时间=2026-09-30 16:15:00
+2026-10-01 02:04:24 [INFO] 日K取数成功，来源=tencent 条数=30 区间=2026-08-19~2026-09-30
+2026-10-01 02:04:25 [WARNING] 请求失败 1/1 https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=30&… -> ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+2026-10-01 02:04:27 [WARNING] 请求失败 1/1 https://push2.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=30&klt… -> HTTP 502
+2026-10-01 02:04:30 [WARNING] 请求失败 1/1 https://push2delay.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=3… -> HTTP 502
+2026-10-01 02:04:33 [WARNING] 请求失败 1/1 https://push2his.eastmoney.com/api/qt/stock/fflow/kline/get?lmt=0&klt=… -> ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+2026-10-01 02:04:34 [WARNING] 请求失败 1/1 https://push2.eastmoney.com/api/qt/stock/fflow/kline/get?lmt=0&klt=1&s… -> HTTP 502
+2026-10-01 02:04:37 [WARNING] 请求失败 1/1 https://push2delay.eastmoney.com/api/qt/stock/fflow/kline/get?lmt=0&kl… -> HTTP 502
+2026-10-01 02:04:39 [WARNING] 全部资金流源均失败（报告将标注未取到）: eastmoney_day@push2his.eastmoney.com[requests]: 请求最终失败: https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=30&… (('Connection aborte… | eastmoney_day@push2his.eastmoney.com[curl]: curl 退出码 52: curl: (52) Empty reply from server | eastmoney_day@push2his.eastmoney.com[curl-direct]: curl 退出码 52: curl: (52) Empty reply from server | eastmoney_day@push2.eastmoney.com[requests]: 请求最终失败: https://push2.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=30&klt… (HTTP 502) | eastmoney_day@push2.eastmoney.com[curl]: Expecting value: line 1 column 1 (char 0) | eastmoney_day@push2.eastmoney.com[curl-direct]: Expecting value: line 1 column 1 (char 0) | eastmoney_day@push2delay.eastmoney.com[requests]: 请求最终失败: https://push2delay.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=3… (HTTP 502) | eastmoney_day@push2delay.eastmoney.com[curl]: Expecting value: line 1 column 1 (char 0)
+2026-10-01 02:04:41 [INFO] 期货取数成功 焦煤主力(JM0) 最新=1449.0 前收=1448.0 涨跌=0.07%
+2026-10-01 02:04:42 [INFO] 期货取数成功 焦炭主力(J0) 最新=1958.5 前收=1942.5 涨跌=0.82%
+2026-10-01 02:04:42 [INFO] 板块取数成功 中证煤炭(sz399998) 2374.0 0.77
+2026-10-01 02:04:42 [INFO] 板块取数成功 煤炭ETF(sh515220) 1.256 0.88
+2026-10-01 02:04:43 [INFO] 公告取数成功，10 天内 1 条
+2026-10-01 02:04:43 [WARNING] 行情日期(2026-09-30)不是今天(2026-10-01)，20 秒后重试 3/3
+2026-10-01 02:05:03 [INFO] 行情取数成功，来源=tencent 现价=6.48 涨跌幅=1.73 时间=2026-09-30 16:15:00
+2026-10-01 02:05:04 [INFO] 日K取数成功，来源=tencent 条数=30 区间=2026-08-19~2026-09-30
+2026-10-01 02:05:05 [WARNING] 请求失败 1/1 https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=30&… -> ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+2026-10-01 02:05:07 [WARNING] 请求失败 1/1 https://push2.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=30&klt… -> HTTP 502
+2026-10-01 02:05:10 [WARNING] 请求失败 1/1 https://push2delay.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=3… -> HTTP 502
+2026-10-01 02:05:13 [WARNING] 请求失败 1/1 https://push2his.eastmoney.com/api/qt/stock/fflow/kline/get?lmt=0&klt=… -> ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+2026-10-01 02:05:14 [WARNING] 请求失败 1/1 https://push2.eastmoney.com/api/qt/stock/fflow/kline/get?lmt=0&klt=1&s… -> HTTP 502
+2026-10-01 02:05:17 [WARNING] 请求失败 1/1 https://push2delay.eastmoney.com/api/qt/stock/fflow/kline/get?lmt=0&kl… -> HTTP 502
+2026-10-01 02:05:19 [WARNING] 全部资金流源均失败（报告将标注未取到）: eastmoney_day@push2his.eastmoney.com[requests]: 请求最终失败: https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=30&… (('Connection aborte… | eastmoney_day@push2his.eastmoney.com[curl]: curl 退出码 52: curl: (52) Empty reply from server | eastmoney_day@push2his.eastmoney.com[curl-direct]: curl 退出码 52: curl: (52) Empty reply from server | eastmoney_day@push2.eastmoney.com[requests]: 请求最终失败: https://push2.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=30&klt… (HTTP 502) | eastmoney_day@push2.eastmoney.com[curl]: Expecting value: line 1 column 1 (char 0) | eastmoney_day@push2.eastmoney.com[curl-direct]: Expecting value: line 1 column 1 (char 0) | eastmoney_day@push2delay.eastmoney.com[requests]: 请求最终失败: https://push2delay.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=3… (HTTP 502) | eastmoney_day@push2delay.eastmoney.com[curl]: Expecting value: line 1 column 1 (char 0)
+2026-10-01 02:05:21 [INFO] 期货取数成功 焦煤主力(JM0) 最新=1449.0 前收=1448.0 涨跌=0.07%
+2026-10-01 02:05:21 [INFO] 期货取数成功 焦炭主力(J0) 最新=1958.5 前收=1942.5 涨跌=0.82%
+2026-10-01 02:05:22 [INFO] 板块取数成功 中证煤炭(sz399998) 2374.0 0.77
+2026-10-01 02:05:22 [INFO] 板块取数成功 煤炭ETF(sh515220) 1.256 0.88
+2026-10-01 02:05:22 [INFO] 公告取数成功，10 天内 1 条
+2026-10-01 02:05:22 [WARNING] 行情最新日期为 2026-09-30（非今日 2026-10-01），判定为休市或数据源未更新，本次不推送
 
 [skip_stale] 行情最新日期为 2026-09-30（非今日 2026-10-01），判定为休市或数据源未更新，本次不推送
