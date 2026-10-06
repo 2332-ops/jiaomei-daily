@@ -1,9 +1,9 @@
-北京时间: 2026-10-06 16:51:23
-时段: morning_ten
+北京时间: 2026-10-06 21:57:30
+时段: market_close
 方式: 正式推送（补发跳过去重: no，重置去重: no）
 触发: schedule
 任务结果: success
 重置去重: 
-凭证自检:   [OK]   焦煤日报QQ单聊         凭证可用（access_token 已取到，有效期 974 秒）｜环境=沙箱｜目标=users/E0E7…9F47(len=32)｜注意：openid 是否正确、机器人是否已上线，只有真发一条才能确认
+凭证自检:   [OK]   焦煤日报QQ单聊         凭证可用（access_token 已取到，有效期 7200 秒）｜环境=沙箱｜目标=users/E0E7…9F47(len=32)｜注意：openid 是否正确、机器人是否已上线，只有真发一条才能确认
 末尾输出: [skip_stale] 行情最新日期为 2026-09-30（非今日 2026-10-06），判定为休市或数据源未更新，本次不推送
-运行页: https://github.com/2332-ops/jiaomei-daily/actions/runs/37438534192
+运行页: https://github.com/2332-ops/jiaomei-daily/actions/runs/37474463070
